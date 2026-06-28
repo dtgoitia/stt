@@ -35,28 +35,45 @@
         };
         # lagunPkgs = lagun.packages.${system};
         # lagunLib = lagun.lib.${system};
+
+        record = pkgs.symlinkJoin {
+          name = "record";
+          paths = [(pkgs.writeScriptBin "record" (builtins.readFile ./bin/record))];
+          buildInputs = [pkgs.makeWrapper];
+          postBuild = ''
+            wrapProgram $out/bin/record \
+              --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.ffmpeg]}
+          '';
+        };
+
+        unbox = pkgs.symlinkJoin {
+          name = "unbox";
+          paths = [(pkgs.writeScriptBin "unbox" (builtins.readFile ./bin/unbox))];
+          buildInputs = [pkgs.makeWrapper];
+          postBuild = ''
+            wrapProgram $out/bin/unbox \
+              --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.fzf]}
+          '';
+        };
+
+        transcribe = pkgs.writeShellApplication {
+          name = "transcribe";
+          text = builtins.readFile ./bin/transcribe;
+        };
       in {
         packages = {
-          record = pkgs.symlinkJoin {
-            name = "record";
-            paths = [(pkgs.writeScriptBin "record" (builtins.readFile ./bin/record))];
-            buildInputs = [pkgs.makeWrapper];
-            postBuild = ''
-              wrapProgram $out/bin/record \
-                --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.ffmpeg]}
-            '';
-          };
-
-          transcribe = pkgs.writeShellApplication {
-            name = "transcribe";
-            text = builtins.readFile ./bin/transcribe;
-          };
+          inherit record;
+          inherit unbox;
+          inherit transcribe;
         };
 
         devShells.default = pkgs.mkShell {
           inputsFrom = [lagunShell]; # bring in lagun's shell
 
           packages = [
+            record
+            unbox
+            transcribe
             # add more packages
           ];
         };

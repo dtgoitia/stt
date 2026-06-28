@@ -1,0 +1,38 @@
+
+
+log () {
+    echo >&2 "${1}"
+}
+
+error () {
+    echo >&2 "ERROR: ${1}"
+}
+
+recordings_dir="$HOME/audio-captures"
+
+if [[ ! -d "$recordings_dir" ]]; then
+    error "directory not found: $recordings_dir"
+    exit 1
+fi
+
+# check directory has MKV files
+if ! find "$recordings_dir" -type f -name "*.mkv" | grep -q .; then
+    error "no MKV files found in ${recordings_dir}"
+    exit 2
+fi
+
+# user chooses recording
+mkv_recording_path="$( find $recordings_dir -type f | grep mkv | sort -r | fzf )"
+
+if [[ -z "$mkv_recording_path" ]]; then
+    error "no MKV file selected"
+    exit 3
+fi
+
+base="${mkv_recording_path%.*}"
+
+# extract mic only
+ffmpeg -i "${mkv_recording_path}" -map 0:a:0 -ac 1 -c:a pcm_s16le "${base}-mic.wav"
+
+# extract system only
+ffmpeg -i "${mkv_recording_path}" -map 0:a:1 -ac 1 -c:a pcm_s16le "${base}-system.wav"
